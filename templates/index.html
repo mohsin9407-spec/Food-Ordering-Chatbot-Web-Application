@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>🍴 Food Ordering Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="page-background">
+        <div class="chat-container">
+            <h2>🍔 Food Ordering Chatbot</h2>
+            <h3>Welcome to Best Restaurant</h3>
+            <p>***Welcome*** {{ Food }} | <a href="/logout">Logout</a></p>
+            <div id="chat-box" class="chat-box"></div>
+
+            <div class="input-container">
+                <input type="text" id="user-input" placeholder="Ask about pizza, burgers, order status..."/>
+                <button onclick="sendMessage()">Send</button>
+                <img src="{{ url_for('static', filename='mic.png') }}" class="microphone" onclick="startVoice()">
+            </div>
+        </div>
+
+        <!-- ✅ Food Category Bar -->
+        <h3 class="menu-title">🍲 What's on your mind?</h3>
+        <div class="category-bar">
+            <div class="category-item" onclick="quickSend('biryani')">
+                <img src="{{ url_for('static', filename='biryani.png') }}" alt="Biryani">
+                <p>Biryani</p>
+            </div>
+            <div class="category-item" onclick="quickSend('burger')">
+                <img src="{{ url_for('static', filename='burger.png') }}" alt="Burger">
+                <p>Burgers</p>
+            </div>
+            <div class="category-item" onclick="quickSend('pizza')">
+                <img src="{{ url_for('static', filename='pizza.png') }}" alt="Pizza">
+                <p>Pizzas</p>
+            </div>
+            <div class="category-item" onclick="quickSend('noodles')">
+                <img src="{{ url_for('static', filename='noodles.png') }}" alt="Noodles">
+                <p>Noodles</p>
+            </div>
+            <div class="category-item" onclick="quickSend('ice cream')">
+                <img src="{{ url_for('static', filename='icecream.png') }}" alt="Ice-Cream">
+                <p>Ice-Cream</p>
+            </div>
+            <div class="category-item" onclick="quickSend('paratha')">
+                <img src="{{ url_for('static', filename='paratha.png') }}" alt="Paratha">
+                <p>Paratha</p>
+            </div>
+        </div>
+
+        <!-- ✅ Menu Grid -->
+        <h3 class="menu-title">🍽️ Our Menu</h3>
+        <div class="menu-grid">
+            {% for key, item in menu.items() %}
+            <div class="menu-item" onclick="addToCart('{{ item['name'] }}', {{ item['price'] }})">
+                <img src="{{ url_for('static', filename=key + '.png') }}" alt="{{ item['name'] }}">
+                <p>{{ item['name'] }}</p>
+                <!-- ✅ Show Rupees instead of Dollars -->
+                <span>₹{{ "%.2f"|format(item['price']) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- ✅ Cart -->
+        <div class="cart-container">
+            <h3>🛒 Your Cart</h3>
+            <ul id="cart-list"></ul>
+            <p><b>Total:</b> ₹<span id="cart-total">0.00</span></p>
+            <button class="checkout-btn" onclick="checkout()">Checkout</button>
+        </div>
+    </div>
+
+    <script>
+        let cart = [];
+        let total = 0;
+
+        function addToCart(item, price) {
+            cart.push({item, price});
+            total += price;
+
+            const cartList = document.getElementById("cart-list");
+            const li = document.createElement("li");
+            // ✅ Show Rupees in Cart
+            li.textContent = `${item} - ₹${price.toFixed(2)}`;
+            cartList.appendChild(li);
+
+            document.getElementById("cart-total").textContent = total.toFixed(2);
+
+            // Toast
+            showToast(`${item} added to cart!`);
+
+            fetchBotReply(`I ordered ${item}`);
+        }
+
+        function checkout() {
+            if(cart.length === 0) {
+                showToast("⚠️ Your cart is empty!");
+                return;
+            }
+            alert("✅ Thank you! Your order has been placed.");
+            cart = [];
+            total = 0;
+            document.getElementById("cart-list").innerHTML = "";
+            document.getElementById("cart-total").textContent = "0.00";
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById("user-input");
+            const message = input.value;
+            if (!message) return;
+            addUserMessage(message);
+            input.value = "";
+            await fetchBotReply(message);
+        }
+
+        function addUserMessage(message) {
+            const chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML += `<div class="user-msg"><b>You:</b> ${message}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function fetchBotReply(message) {
+            const response = await fetch("/chat", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message: message})
+            });
+            const data = await response.json();
+            const chatBox = document.getElementById("chat-box");
+
+            chatBox.innerHTML += `<div class="bot-msg"><b>Bot:</b> ${data.reply}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+            speakText(data.reply);
+        }
+
+        // ✅ Mic Input
+        function startVoice() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = "en-IN"; // English (India) works well with Rupee
+            recognition.start();
+
+            recognition.onresult = function(event) {
+                const voiceText = event.results[0][0].transcript;
+                document.getElementById("user-input").value = voiceText;
+                sendMessage();
+            };
+        }
+
+        // ✅ Bot Speaks (TTS will pronounce ₹ as "Rupees")
+        function speakText(text) {
+            const speech = new SpeechSynthesisUtterance(text);
+            speech.lang = "en-IN"; // Indian English
+            window.speechSynthesis.speak(speech);
+        }
+
+        // ✅ Toast Notification
+        function showToast(msg) {
+            let toast = document.createElement("div");
+            toast.className = "toast";
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+
+        // ✅ Quick send when clicking category
+        function quickSend(item) {
+            addUserMessage("I want " + item);
+            fetchBotReply("I want " + item);
+        }
+    </script>
+</body>
+</html>
