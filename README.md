@@ -108,7 +108,7 @@ This is a simple demo — open an issue or submit a PR with improvements. Keep c
 
 ## License
 
-Use/modify as you like for learning and demo purposes. Add an open-source license file (e.g., MIT) if you plan to publish.
+MIT (Open source project.)
 
 ## Contact
 
